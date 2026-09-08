@@ -104,6 +104,24 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!--
+                Surefire's default includes are Test*/ *Test/ *Tests/ *TestCase, so
+                SchemeLifecycleIT was silently not run by `mvn verify` even though it is
+                the test that drives the whole scheme through HTTP and asserts the phase
+                gates and the maker-checker rules. Included explicitly rather than adding
+                failsafe, because it needs no separate lifecycle: it is fast and uses a
+                random port.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
