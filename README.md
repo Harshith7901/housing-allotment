@@ -477,7 +477,10 @@ list, explainability beats a few points of F1.
 ## API tour
 
 Admin endpoints need `-H 'X-Actor-Id: registrar@scheme' -H 'X-Actor-Role: SCHEME_ADMIN'`.
-Public endpoints need nothing.
+Reads as well as writes: a `GET` under `/api/admin` or `/api/applications` names an actor
+too, and accepts `SCHEME_ADMIN`, `VERIFIER` or `AUDITOR` (an application read also accepts
+`DATA_ENTRY`, the clerk who keyed it). Writes are narrower — the table above says which
+role each one takes. Public endpoints need nothing, and that is asserted by the tests.
 
 ```
 # lifecycle
@@ -531,4 +534,3 @@ by whoever is reviewing the scheme.
 they mostly have legitimate access), the alternatives I considered and rejected with the
 reasons, the data model, and where this breaks at a hundred times the size.
 
-Written for the Zenalyst AI backend assignment.

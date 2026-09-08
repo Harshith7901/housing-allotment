@@ -171,12 +171,13 @@ class SchemeLifecycleIT {
                 "blocking must reduce the comparison count");
 
         // The duplicate keeps its row and points at the surviving application.
-        JsonNode supersededView = getJson("/api/applications/" + duplicate);
+        JsonNode supersededView = getJson("/api/applications/" + duplicate, REGISTRAR, "SCHEME_ADMIN");
         assertEquals("SUPERSEDED", supersededView.get("status").asText());
         assertEquals(firstForm, supersededView.get("supersededByApplicationId").asText());
 
         // Work whatever landed in the review queue, so the freeze gate can open.
-        for (JsonNode link : getJson("/api/admin/schemes/" + SCHEME + "/duplicate-review-queue")) {
+        for (JsonNode link : getJson("/api/admin/schemes/" + SCHEME + "/duplicate-review-queue",
+                REVIEWER, "VERIFIER")) {
             mvc.perform(actor(post("/api/admin/duplicate-links/"
                                     + link.get("linkId").asText() + "/review"), REVIEWER, "VERIFIER")
                             .content(json.writeValueAsString(new Requests.ReviewDuplicate(
@@ -209,7 +210,7 @@ class SchemeLifecycleIT {
                     .andExpect(status().isCreated());
         }
 
-        JsonNode rejectedView = getJson("/api/applications/" + rejected);
+        JsonNode rejectedView = getJson("/api/applications/" + rejected, REGISTRAR, "SCHEME_ADMIN");
         assertEquals("INELIGIBLE", rejectedView.get("status").asText());
         assertTrue(rejectedView.get("statusReason").asText().contains("INCOME_ABOVE_CEILING"),
                 "a rejection must carry the published condition it failed");
@@ -234,7 +235,8 @@ class SchemeLifecycleIT {
 
         // The canonical roll text must hash to the published roll hash, using nothing but
         // sha256sum. This is the property the whole verification story rests on.
-        String rollText = mvc.perform(get("/api/admin/rolls/" + ROLL + "/canonical"))
+        String rollText = mvc.perform(actor(get("/api/admin/rolls/" + ROLL + "/canonical"),
+                        REGISTRAR, "SCHEME_ADMIN"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertEquals(roll.get("rollHash").asText(),
@@ -347,7 +349,7 @@ class SchemeLifecycleIT {
         assertEquals(UNITS, json.readTree(assigned.getResponse().getContentAsString())
                 .get("assigned").asInt());
 
-        JsonNode allotments = getJson("/api/admin/draws/" + DRAW + "/allotments");
+        JsonNode allotments = getJson("/api/admin/draws/" + DRAW + "/allotments", REGISTRAR, "SCHEME_ADMIN");
         String toForfeit = allotments.get(0).get("allotmentId").asText();
         String forfeitedUnit = allotments.get(0).get("unitId").asText();
 
@@ -369,7 +371,7 @@ class SchemeLifecycleIT {
         assertEquals(1, promotions.size());
         assertNotNull(promotions.get(0).get("promotedApplicationId").asText());
 
-        JsonNode afterPromotion = getJson("/api/admin/draws/" + DRAW + "/allotments");
+        JsonNode afterPromotion = getJson("/api/admin/draws/" + DRAW + "/allotments", REGISTRAR, "SCHEME_ADMIN");
         long liveOffersForThatUnit = 0;
         for (JsonNode row : afterPromotion) {
             if (row.get("unitId").asText().equals(forfeitedUnit)

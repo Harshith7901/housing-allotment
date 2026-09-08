@@ -1,5 +1,6 @@
 package dev.harshith.housing.web;
 
+import dev.harshith.housing.api.Role;
 import dev.harshith.housing.persistence.ApplicationEntity;
 import dev.harshith.housing.persistence.EligibilityCheckEntity;
 import dev.harshith.housing.service.EligibilityService;
@@ -66,7 +67,11 @@ public class ApplicationController {
     }
 
     @GetMapping("/{applicationId}")
-    public ApplicationEntity get(@PathVariable String applicationId) {
+    public ApplicationEntity get(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String applicationId) {
+        requireReader(actorId, actorRole);
         return intake.get(applicationId);
     }
 
@@ -93,7 +98,24 @@ public class ApplicationController {
     }
 
     @GetMapping("/{applicationId}/eligibility-checks")
-    public List<EligibilityCheckEntity> eligibilityChecks(@PathVariable String applicationId) {
+    public List<EligibilityCheckEntity> eligibilityChecks(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String applicationId) {
+        requireReader(actorId, actorRole);
         return eligibility.forApplication(applicationId);
     }
+
+    /**
+     * Reads of an application are staff-only, because this is the one place the system
+     * hands back the identifying details behind an application id -- name, relative's
+     * name, phone, date of birth, address, and the last four digits of the government
+     * identifier. An applicant's own route to their case is the public explanation
+     * endpoint, which is deliberately built to carry no personal data at all.
+     */
+    private static void requireReader(String actorId, String actorRole) {
+        CallerActor.of(actorId, actorRole)
+                .require(Role.DATA_ENTRY, Role.VERIFIER, Role.SCHEME_ADMIN, Role.AUDITOR);
+    }
+
 }

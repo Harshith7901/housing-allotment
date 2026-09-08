@@ -1,5 +1,6 @@
 package dev.harshith.housing.web;
 
+import dev.harshith.housing.api.Role;
 import dev.harshith.housing.core.draw.WaitlistPromoter;
 import dev.harshith.housing.core.model.Draw;
 import dev.harshith.housing.core.units.Units;
@@ -109,18 +110,30 @@ public class AdminDrawController {
     }
 
     @GetMapping("/draws/{drawId}")
-    public DrawEntity draw(@PathVariable String drawId) {
+    public DrawEntity draw(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String drawId) {
+        requireReader(actorId, actorRole);
         return draws.entity(drawId);
     }
 
     @GetMapping("/schemes/{schemeCode}/draws")
-    public List<DrawEntity> history(@PathVariable String schemeCode) {
+    public List<DrawEntity> history(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String schemeCode) {
+        requireReader(actorId, actorRole);
         return draws.history(schemeCode);
     }
 
     @GetMapping("/draws/{drawId}/waitlist")
-    public List<DrawSelectionEntity> waitlist(@PathVariable String drawId,
-                                              @RequestParam String pool) {
+    public List<DrawSelectionEntity> waitlist(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String drawId,
+            @RequestParam String pool) {
+        requireReader(actorId, actorRole);
         return draws.waitlist(drawId, pool);
     }
 
@@ -143,7 +156,11 @@ public class AdminDrawController {
     }
 
     @GetMapping("/draws/{drawId}/allotments")
-    public List<UnitAllotmentEntity> allotmentsFor(@PathVariable String drawId) {
+    public List<UnitAllotmentEntity> allotmentsFor(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String drawId) {
+        requireReader(actorId, actorRole);
         return allotments.forDraw(drawId);
     }
 
@@ -197,4 +214,20 @@ public class AdminDrawController {
         }
         return out;
     }
+
+    /**
+     * Reads of a draw's internal state are staff-only.
+     *
+     * <p>Every write already names an actor, checks a role and lands in the audit chain.
+     * The reads did not, which meant a draw's metadata, its waitlists and its allotments
+     * were readable by anyone who could reach the port -- before publication included.
+     * Harmless while identity is a self-asserted header, and a real hole the moment
+     * {@link CallerActor} is replaced by real authentication and these endpoints sit
+     * outside it. AUDITOR is included deliberately: an auditor reads everything and
+     * writes nothing.
+     */
+    private static void requireReader(String actorId, String actorRole) {
+        CallerActor.of(actorId, actorRole).require(Role.SCHEME_ADMIN, Role.VERIFIER, Role.AUDITOR);
+    }
+
 }

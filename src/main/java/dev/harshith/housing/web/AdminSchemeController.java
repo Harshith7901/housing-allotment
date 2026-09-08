@@ -76,7 +76,11 @@ public class AdminSchemeController {
     }
 
     @GetMapping("/schemes/{schemeCode}")
-    public SchemeEntity scheme(@PathVariable String schemeCode) {
+    public SchemeEntity scheme(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String schemeCode) {
+        requireReader(actorId, actorRole);
         return schemes.get(schemeCode);
     }
 
@@ -86,7 +90,11 @@ public class AdminSchemeController {
      * and whether the published unit count matches the units that actually exist.
      */
     @GetMapping("/schemes/{schemeCode}/status")
-    public Map<String, Object> status(@PathVariable String schemeCode) {
+    public Map<String, Object> status(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String schemeCode) {
+        requireReader(actorId, actorRole);
         SchemeEntity scheme = schemes.get(schemeCode);
 
         Map<String, Long> counts = new LinkedHashMap<>();
@@ -158,7 +166,11 @@ public class AdminSchemeController {
     }
 
     @GetMapping("/rule-sets/{version}")
-    public Map<String, Object> ruleSet(@PathVariable String version) {
+    public Map<String, Object> ruleSet(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String version) {
+        requireReader(actorId, actorRole);
         RuleSetEntity entity = ruleSets.entity(version);
         Draw.SeatPlan plan = QuotaCalculator.plan(ruleSets.load(version));
         Map<String, Object> body = new LinkedHashMap<>();
@@ -173,7 +185,11 @@ public class AdminSchemeController {
     }
 
     @GetMapping("/schemes/{schemeCode}/rule-sets")
-    public List<RuleSetEntity> ruleSetHistory(@PathVariable String schemeCode) {
+    public List<RuleSetEntity> ruleSetHistory(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String schemeCode) {
+        requireReader(actorId, actorRole);
         return ruleSets.history(schemeCode);
     }
 
@@ -234,7 +250,11 @@ public class AdminSchemeController {
     }
 
     @GetMapping("/schemes/{schemeCode}/duplicate-review-queue")
-    public List<DuplicateLinkEntity> reviewQueue(@PathVariable String schemeCode) {
+    public List<DuplicateLinkEntity> reviewQueue(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String schemeCode) {
+        requireReader(actorId, actorRole);
         return deduplication.reviewQueue(schemeCode);
     }
 
@@ -259,13 +279,21 @@ public class AdminSchemeController {
     }
 
     @GetMapping("/rolls/{rollId}")
-    public DrawRollEntity roll(@PathVariable String rollId) {
+    public DrawRollEntity roll(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String rollId) {
+        requireReader(actorId, actorRole);
         return rolls.entity(rollId);
     }
 
     /** The canonical text whose SHA-256 is the roll hash. */
     @GetMapping(value = "/rolls/{rollId}/canonical", produces = MediaType.TEXT_PLAIN_VALUE)
-    public String rollText(@PathVariable String rollId) {
+    public String rollText(
+            @RequestHeader(CallerActor.ID_HEADER) String actorId,
+            @RequestHeader(CallerActor.ROLE_HEADER) String actorRole,
+            @PathVariable String rollId) {
+        requireReader(actorId, actorRole);
         return rolls.canonicalText(rollId);
     }
 
@@ -282,4 +310,20 @@ public class AdminSchemeController {
         }
         return out;
     }
+
+    /**
+     * Reads of a scheme's internal state are staff-only.
+     *
+     * <p>Every write already names an actor, checks a role and lands in the audit chain.
+     * The reads did not, which meant a scheme's phase, its counts by status, its roll
+     * hashes and its draw metadata were readable by anyone who could reach the port --
+     * pre-publication included. Harmless while identity is a self-asserted header, and a
+     * real hole the moment {@link CallerActor} is replaced by real authentication and
+     * these endpoints sit outside it. AUDITOR is included deliberately: an auditor reads
+     * everything and writes nothing.
+     */
+    private static void requireReader(String actorId, String actorRole) {
+        CallerActor.of(actorId, actorRole).require(Role.SCHEME_ADMIN, Role.VERIFIER, Role.AUDITOR);
+    }
+
 }
