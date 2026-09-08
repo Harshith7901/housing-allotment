@@ -27,3 +27,11 @@ verification-bundle/
 bundle/
 *.log
 __pycache__/
+
+# Eclipse per-project metadata (.classpath/.project/.settings are already above)
+.factorypath
+*.launch
+
+# Local verification scratch
+bundle.zip
+forged/
