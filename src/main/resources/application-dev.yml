@@ -1,0 +1,47 @@
+# Zero-dependency profile: in-memory H2, no Docker, no MySQL, demo data loaded on startup.
+#
+#   mvn spring-boot:run -Dspring-boot.run.profiles=dev
+#
+# Note the one deliberate difference from production: here Hibernate generates the schema
+# from the entity classes instead of running the Flyway migrations. Maintaining a second
+# hand-written H2 dialect of the same schema would mean two files that drift apart
+# silently; generating it means the dev database always matches the entities, and the
+# MySQL migration stays the single reviewable schema of record.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:housing;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+  flyway:
+    enabled: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+housing:
+  demo:
+    enabled: true
+    # The brief's numbers: about 4,000 applications for 600 flats, including duplicates.
+    # Shrink them for a faster startup, e.g.
+    #   -Dspring-boot.run.arguments="--housing.demo.households=400 --housing.demo.units=80"
+    households: 3600
+    duplicates: 420
+    units: 600
+    seed: 20260401
+    # Runs the full lifecycle at startup - deduplicate, freeze, commit, draw, publish,
+    # allot - so that every read endpoint has something real behind it immediately.
+    run-full-pipeline: true
+
+logging:
+  level:
+    dev.harshith.housing.demo: INFO

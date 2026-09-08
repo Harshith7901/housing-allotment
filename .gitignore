@@ -1,0 +1,29 @@
+target/
+out/
+build/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+nbproject/
+nb-configuration.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local runtime output
+verification-bundle/
+*-verification-bundle.zip
+bundle/
+*.log
+__pycache__/

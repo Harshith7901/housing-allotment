@@ -1,0 +1,75 @@
+# Default profile: MySQL 8 with Flyway migrations.
+# For a zero-dependency run (in-memory H2, no Docker, demo data loaded), use:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+spring:
+  application:
+    name: housing-allotment
+
+  datasource:
+    url: ${HOUSING_DB_URL:jdbc:mysql://localhost:3306/housing?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}
+    username: ${HOUSING_DB_USER:housing}
+    password: ${HOUSING_DB_PASSWORD:housing}
+    hikari:
+      maximum-pool-size: 16
+      pool-name: housing-pool
+
+  jpa:
+    # The schema belongs to Flyway. Hibernate never touches DDL against MySQL: a schema
+    # that drifts with the entity classes is not something an auditor can review.
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/mysql
+    baseline-on-migrate: false
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      # ISO-8601 strings, not epoch numbers. These timestamps are quoted in explanations
+      # given to applicants and in published bundles; they have to be readable.
+      write-dates-as-timestamps: false
+
+  threads:
+    virtual:
+      enabled: true
+
+housing:
+  government-id:
+    # MUST be overridden in any real deployment. An unsalted digest of a twelve-digit
+    # identifier is brute-forceable in minutes, so this value is what makes the stored
+    # hashes useless to somebody who steals the database.
+    pepper: ${HOUSING_GOVERNMENT_ID_PEPPER:development-only-pepper-do-not-use-in-production}
+  demo:
+    enabled: false
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+logging:
+  level:
+    dev.harshith.housing: INFO
+    org.hibernate.SQL: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

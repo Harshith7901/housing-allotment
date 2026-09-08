@@ -1,0 +1,61 @@
+# One command from a clean machine:
+#
+#   docker compose up --build
+#
+# Brings up MySQL 8, runs the Flyway migrations, and starts the service on
+# http://localhost:8080 with the demo scheme already drawn and published.
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: housing
+      MYSQL_USER: housing
+      MYSQL_PASSWORD: housing
+      MYSQL_ROOT_PASSWORD: root
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      # UTC everywhere. A roll hash that depends on the database server's time zone would
+      # be indefensible.
+      - --default-time-zone=+00:00
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uhousing", "-phousing"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  app:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      HOUSING_DB_URL: >-
+        jdbc:mysql://mysql:3306/housing?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8
+      HOUSING_DB_USER: housing
+      HOUSING_DB_PASSWORD: housing
+      # In a real deployment this comes from a secret store. It is what makes the stored
+      # government-identifier digests useless to somebody who steals the database, so
+      # rotating it means re-hashing from the source documents.
+      HOUSING_GOVERNMENT_ID_PEPPER: compose-demo-pepper-change-me
+      # Loads ~4,000 applications for 600 flats and runs the whole lifecycle at startup.
+      # Set to false for an empty scheme you drive through the API yourself.
+      HOUSING_DEMO_ENABLED: "true"
+      HOUSING_DEMO_RUN_FULL_PIPELINE: "true"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+volumes:
+  mysql-data:

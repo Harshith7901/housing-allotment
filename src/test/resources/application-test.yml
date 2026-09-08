@@ -1,0 +1,25 @@
+# Tests run against in-memory H2 in MySQL compatibility mode, with Hibernate generating
+# the schema from the entities and the demo fixture switched off. Each test class gets a
+# uniquely named database so that classes cannot see each other's rows.
+spring:
+  datasource:
+    url: jdbc:h2:mem:housing-test-${random.uuid};MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  flyway:
+    enabled: false
+
+housing:
+  demo:
+    enabled: false
+  government-id:
+    pepper: test-pepper
+
+logging:
+  level:
+    dev.harshith.housing: WARN
