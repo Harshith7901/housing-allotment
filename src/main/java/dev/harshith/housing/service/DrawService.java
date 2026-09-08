@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The draw lifecycle: commit, reveal and execute, publish.
@@ -246,9 +247,25 @@ public class DrawService {
     /** The stored selection for one applicant — the fast path for "what happened to me?". */
     @Transactional(readOnly = true)
     public DrawSelectionEntity selection(String drawId, String applicationId) {
-        return selections.findByDrawIdAndApplicationId(drawId, applicationId)
+        return findSelection(drawId, applicationId)
                 .orElseThrow(() -> new NotFoundException(
                         "application " + applicationId + " was not on the roll for draw " + drawId));
+    }
+
+    /**
+     * The same lookup as a question rather than a demand, for callers to whom "not on this
+     * roll" is an ordinary answer — an applicant found ineligible, or superseded as a
+     * duplicate, has no line in the draw and that is not an error.
+     *
+     * <p>It exists because the throwing form cannot be used inside another transaction and
+     * then caught: the {@link NotFoundException} marks the surrounding transaction
+     * rollback-only, so the request dies at commit with {@code UnexpectedRollbackException}
+     * even though the caller handled it. Asking is the only safe shape across a
+     * transaction boundary.
+     */
+    @Transactional(readOnly = true)
+    public Optional<DrawSelectionEntity> findSelection(String drawId, String applicationId) {
+        return selections.findByDrawIdAndApplicationId(drawId, applicationId);
     }
 
     @Transactional(readOnly = true)

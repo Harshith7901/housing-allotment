@@ -118,10 +118,14 @@ public class ExplanationService {
                 // draw contestable.
                 continue;
             }
-            DrawSelectionEntity selection;
-            try {
-                selection = draws.selection(draw.getDrawId(), applicationId);
-            } catch (dev.harshith.housing.api.NotFoundException notOnRoll) {
+            // Not being on this draw's roll is an ordinary answer, not an error: the
+            // ineligible and the superseded have no line in it. Asked, never caught -- a
+            // NotFoundException thrown by a @Transactional lookup marks this read-only
+            // transaction rollback-only, and handling it here would still fail the whole
+            // request at commit with UnexpectedRollbackException.
+            DrawSelectionEntity selection =
+                    draws.findSelection(draw.getDrawId(), applicationId).orElse(null);
+            if (selection == null) {
                 continue;
             }
             Draw.DrawOutcome outcome = draws.outcome(draw.getDrawId());
